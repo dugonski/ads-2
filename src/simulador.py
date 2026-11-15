@@ -25,6 +25,9 @@ CUSTO_DO_POUSO_REAIS = 80
 TAXA_ADICIONAL_DE_POUSO_REAIS = 80
 
 BATERIA_CHEIA = 1.0
+# Fração da bateria que precisa sobrar ao fim de cada trecho, para o drone nunca
+# depender dos últimos segundos de carga.
+RESERVA_DE_SEGURANCA_DA_BATERIA = 0.10
 
 
 def custo_do_pouso_reais(segundo_do_dia: int) -> int:
@@ -144,9 +147,9 @@ class Simulador:
 
 
 def problema_na_chegada(trecho: TrechoSimulado) -> str | None:
-    """Regra descumprida pelo voo do trecho, se houver: bateria ou horário de pouso."""
-    if trecho.carga_restante < 0:
-        return "bateria esgotada antes do fim do trecho"
+    """Regra descumprida pelo voo do trecho, se houver: reserva de bateria ou horário de pouso."""
+    if trecho.carga_restante < RESERVA_DE_SEGURANCA_DA_BATERIA:
+        return "bateria abaixo da reserva de segurança ao fim do trecho"
     if trecho.chegada.segundo_do_dia > LIMITE_DE_POUSO_S:
         return f"chegada às {trecho.chegada.horario}, depois do limite de pouso"
     return None

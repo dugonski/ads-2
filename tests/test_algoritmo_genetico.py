@@ -24,7 +24,7 @@ from src.contrato import Coordenada, Momento, TrechoPlanejado
 from src.coordenadas import CEP_UNIBRASIL
 from src.drone import VELOCIDADES_PERMITIDAS
 from src.geografia import RAIO_DA_TERRA_KM
-from src.simulador import Simulador
+from src.simulador import RESERVA_DE_SEGURANCA_DA_BATERIA, Simulador
 
 KM_POR_GRAU = RAIO_DA_TERRA_KM * math.pi / 180
 LATITUDE_DA_BASE = -25.0
@@ -153,8 +153,12 @@ def test_plano_pousa_antes_de_faltar_bateria():
 
     plano = montar_plano(individuo(["M", "P"], velocidade=80), simulador)
 
+    resultado = simulador.simular_plano(plano)
     assert [trecho.pousar for trecho in plano] == [False, True, True]
-    assert simulador.simular_plano(plano).valido
+    assert resultado.valido
+    assert all(
+        trecho.carga_restante >= RESERVA_DE_SEGURANCA_DA_BATERIA for trecho in resultado.trechos
+    )
 
 
 def test_plano_que_nao_cabe_em_um_dia_continua_no_dia_seguinte():
@@ -183,7 +187,7 @@ def test_trecho_alem_da_autonomia_gera_plano_invalido_e_penalizado():
 
     resultado = avaliar(candidato, simulador)
 
-    assert "bateria esgotada" in resultado.violacoes[0]
+    assert "reserva de segurança" in resultado.violacoes[0]
     assert candidato.fitness >= PENALIDADE_DE_PLANO_INVALIDO
 
 

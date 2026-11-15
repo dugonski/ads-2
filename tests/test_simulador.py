@@ -6,7 +6,12 @@ from src import vento
 from src.contrato import Coordenada, Momento, TrechoPlanejado
 from src.coordenadas import CEP_UNIBRASIL, carregar_coordenadas
 from src.geografia import RAIO_DA_TERRA_KM
-from src.simulador import BATERIA_CHEIA, Simulador, custo_do_pouso_reais
+from src.simulador import (
+    BATERIA_CHEIA,
+    RESERVA_DE_SEGURANCA_DA_BATERIA,
+    Simulador,
+    custo_do_pouso_reais,
+)
 
 KM_POR_GRAU = RAIO_DA_TERRA_KM * math.pi / 180
 AUTONOMIA_A_36_KMH_S = 5700
@@ -139,20 +144,29 @@ def test_pouso_troca_a_bateria_e_permite_retomar_no_dia_seguinte(simulador):
     assert resultado.custo_dos_pousos_reais == 160
 
 
-@pytest.mark.parametrize(("km", "bateria_suficiente"), [(55.0, True), (55.5, False)])
-def test_alcance_maximo_a_36_kmh(sem_vento, km, bateria_suficiente):
-    # Os 5700 s de autonomia cobrem 5528 s de voo (55,28 km) mais 172 s de pouso.
-    distante = ao_norte_da_base("00000003", km)
-    simulador = Simulador([BASE, distante])
+def test_reserva_de_seguranca_limita_o_alcance(sem_vento):
+    # Com 10% de reserva sobram 5130 s a 36 km/h: 4958 s de voo (49,58 km) mais 172 s de pouso.
+    dentro = ao_norte_da_base("00000003", 49.0)
+    fora = ao_norte_da_base("00000004", 50.0)
+    simulador = Simulador([BASE, dentro, fora])
 
-    chegada = simulador.simular_trecho(
-        CEP_UNIBRASIL, TrechoPlanejado(distante.cep, 36, True), SEIS_DA_MANHA, BATERIA_CHEIA
+    resultado = simulador.simular_plano(
+        [
+            TrechoPlanejado(dentro.cep, 36, pousar=True),
+            TrechoPlanejado(CEP_UNIBRASIL, 36, pousar=True),
+            TrechoPlanejado(fora.cep, 36, pousar=True),
+        ]
     )
 
-    assert (chegada.carga_restante >= 0) == bateria_suficiente
+    assert [len(resultado.trechos), resultado.violacoes[0]] == [
+        3,
+        "Trecho 3: bateria abaixo da reserva de segurança ao fim do trecho",
+    ]
+    assert resultado.trechos[0].carga_restante >= RESERVA_DE_SEGURANCA_DA_BATERIA
+    assert 0 < resultado.trechos[2].carga_restante < RESERVA_DE_SEGURANCA_DA_BATERIA
 
 
-def test_plano_que_esgota_a_bateria_para_no_trecho_do_problema(simulador):
+def test_plano_que_esgotaria_a_bateria_para_no_trecho_do_problema(simulador):
     # A 80 km/h a autonomia é de 1154 s: não cobre os 1128 s do plano mais o pouso.
     plano = [
         TrechoPlanejado(MEDIO.cep, 80, pousar=False),
@@ -162,7 +176,7 @@ def test_plano_que_esgota_a_bateria_para_no_trecho_do_problema(simulador):
 
     resultado = simulador.simular_plano(plano)
 
-    assert unica_violacao(resultado) == "Trecho 3: bateria esgotada antes do fim do trecho"
+    assert unica_violacao(resultado) == "Trecho 3: bateria abaixo da reserva de segurança ao fim do trecho"
     assert resultado.trechos[-1].carga_restante < 0
 
 

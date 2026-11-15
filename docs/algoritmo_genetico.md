@@ -18,7 +18,7 @@ Pousos e horários não são genes. `montar_plano` deriva essas decisões do
 cromossomo consultando o simulador:
 
 - o drone só segue sem pousar quando, do destino, ainda alcança o ponto
-  seguinte com bateria e antes das 19:00:00;
+  seguinte com a reserva de 10% de bateria e antes das 19:00:00;
 - em solo, se o próximo trecho não cabe no dia, a partida fica para as 06:00:00
   do dia seguinte.
 
