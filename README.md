@@ -16,6 +16,7 @@ minimizar o tempo total de voo e a quantidade de pousos para recarga.
 | `data/coordenadas_professor.csv` | Lista original fornecida pelo professor, sem alterações |
 | `data/coordenadas.csv` | Lista original mais as coordenadas extras da equipe |
 | `docs/coordenadas_extras.md` | Documentação das coordenadas extras e matrículas |
+| `docs/regras_do_simulador.md` | Regras implementadas no simulador e interpretações adotadas |
 | `output/` | CSV com a melhor solução encontrada |
 | `src/` | Código-fonte |
 | `tests/` | Testes unitários |
