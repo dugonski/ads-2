@@ -27,7 +27,7 @@ TAXA_ADICIONAL_DE_POUSO_REAIS = 80
 BATERIA_CHEIA = 1.0
 # Fração da bateria que precisa sobrar ao fim de cada trecho, para o drone nunca
 # depender dos últimos segundos de carga.
-RESERVA_DE_SEGURANCA_DA_BATERIA = 0.10
+RESERVA_DE_SEGURANCA_DA_BATERIA = 0.01
 
 
 def custo_do_pouso_reais(segundo_do_dia: int) -> int:

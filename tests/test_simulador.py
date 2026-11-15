@@ -145,9 +145,9 @@ def test_pouso_troca_a_bateria_e_permite_retomar_no_dia_seguinte(simulador):
 
 
 def test_reserva_de_seguranca_limita_o_alcance(sem_vento):
-    # Com 10% de reserva sobram 5130 s a 36 km/h: 4958 s de voo (49,58 km) mais 172 s de pouso.
-    dentro = ao_norte_da_base("00000003", 49.0)
-    fora = ao_norte_da_base("00000004", 50.0)
+    # Com 1% de reserva sobram 5643 s a 36 km/h: 5471 s de voo (54,71 km) mais 172 s de pouso.
+    dentro = ao_norte_da_base("00000003", 54.0)
+    fora = ao_norte_da_base("00000004", 55.0)
     simulador = Simulador([BASE, dentro, fora])
 
     resultado = simulador.simular_plano(

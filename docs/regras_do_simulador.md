@@ -48,7 +48,7 @@ Cada `TrechoSimulado` contém os dados de uma linha do CSV de saída.
 | Parada | 60 s para foto sem pouso; 172 s quando há pouso |
 | Autonomia | 5000 x 1,14 x (36 / v)² segundos, com v igual à velocidade regulada |
 | Recarga | Todo pouso troca a bateria |
-| Reserva de segurança | Cada trecho precisa terminar com pelo menos 10% da bateria |
+| Reserva de segurança | Cada trecho precisa terminar com pelo menos 1% da bateria |
 | Horário | Partidas das 06:00:00 às 18:59:59; chegada até 19:00:00 |
 | Prazo | Dias 1 a 7 |
 | Custo | R$ 80 por pouso, mais R$ 80 se o pouso termina depois das 17:00:00 |
@@ -79,5 +79,5 @@ combinação desses valores na função fitness pertence ao algoritmo genético.
    termina a parada de 60 s; só é possível esperar em solo.
 10. **Reserva de bateria.** A especificação exige apenas que o drone não fique
     sem carga. Por segurança, o simulador recusa qualquer trecho que termine
-    com menos de 10% da bateria (`RESERVA_DE_SEGURANCA_DA_BATERIA` em
+    com menos de 1% da bateria (`RESERVA_DE_SEGURANCA_DA_BATERIA` em
     `src/simulador.py`). Isso aumenta o número de pousos em troca de folga.
