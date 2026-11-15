@@ -19,6 +19,7 @@ minimizar o tempo total de voo e a quantidade de pousos para recarga.
 | `docs/regras_do_simulador.md` | Regras implementadas no simulador e interpretações adotadas |
 | `docs/algoritmo_genetico.md` | Codificação, operadores, fitness e critério de parada |
 | `output/solucao_final.csv` | Plano de voo completo da melhor solução encontrada |
+| `output/mapa_rota.png` | Gráfico da rota otimizada gerada pelo script de visualização |
 | `docs/evidencias/` | Saída da execução do algoritmo e dos testes com cobertura |
 | `src/` | Código-fonte |
 | `tests/` | Testes unitários |
@@ -61,6 +62,15 @@ projeto.
    ```bash
    python3 -m src.main --populacao 20 --geracoes 20 --saida output/teste.csv
    ```
+
+5. Após executar o algoritmo genético, gerar o visual da rota percorrida:
+   ```bash
+   python3 -m src.visualizar_rota
+   ```
+
+   O gráfico do plano de voo é gravado em `output/mapa_rota.png` utilizando a
+   biblioteca matplotlib, destacando os CEPs visitados, os pontos de pouso
+   para recarga e a base na Unibrasil.
 
 ## Convenções do projeto
 
