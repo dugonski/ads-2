@@ -17,7 +17,7 @@ de 6371 km.
 | Integrante | Matrícula | CEP | Latitude | Longitude | Ponto mais próximo | Distância (m) |
 |---|---|---|---|---|---|---|
 | Guilherme Dugonski | 2024101129 | 24101129 | -25.4083724101129 | -49.2577899153158 | CEP 80030430 | 748,25 |
-| Tiago | 2024101751 | 24101751 | a definir | a definir | a definir | a definir |
+| Tiago Machado da Rosa | 2024101751 | 24101751 | -25.4210024101751 | -49.2124839175329 | CEP 82821020 | 442,32 |
 
 A latitude da coordenada de Guilherme termina em `24101129`.
 
