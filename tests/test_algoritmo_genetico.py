@@ -1,176 +1,276 @@
-import sys
-from pathlib import Path
-from typing import Dict, List, Tuple
+import math
+import random
 
-# Garante que a pasta src/ seja encontrada ao rodar pytest da raiz do projeto
-RAIZ_PROJETO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(RAIZ_PROJETO / "src"))
+import pytest
 
-from algoritmo_genetico import (
-    AUTONOMIA_NOMINAL_CURITIBA,
-    CEP_BASE,
-    PESO_CUSTO_FINANCEIRO,
-    VELOCIDADES_VALIDAS,
+from src import vento
+from src.algoritmo_genetico import (
+    PENALIDADE_DE_PLANO_INVALIDO,
+    PESO_DO_CUSTO_EM_SEGUNDOS_POR_REAL,
     Individuo,
     aplicar_2opt,
+    avaliar,
     calcular_fitness,
+    criar_individuo_aleatorio,
     crossover_ox1,
-    decodificar_individuo,
     executar_algoritmo_genetico,
     gerar_populacao_inicial,
+    montar_plano,
     mutacao,
     selecao_torneio,
+    tabela_de_distancias,
 )
-from contrato import ResultadoSimulacao, TrechoPlanejado
+from src.contrato import Coordenada, Momento, TrechoPlanejado
+from src.coordenadas import CEP_UNIBRASIL
+from src.drone import VELOCIDADES_PERMITIDAS
+from src.geografia import RAIO_DA_TERRA_KM
+from src.simulador import Simulador
+
+KM_POR_GRAU = RAIO_DA_TERRA_KM * math.pi / 180
+LATITUDE_DA_BASE = -25.0
+LONGITUDE_DA_BASE = -49.0
 
 
-def criar_cenario_ficticio() -> Tuple[List[str], Dict[Tuple[str, str], float]]:
-    """Cria um mini-mapa com o Unibrasil (82821020) e 4 CEPs formando um quadrado."""
-    ceps = [CEP_BASE, "80000001", "80000002", "80000003", "80000004"]
-    # Coordenadas planas simuladas em metros:
-    # Base=(0,0), 01=(0,2000), 02=(2000,2000), 03=(2000,0), 04=(1000,1000)
-    pontos = {
-        CEP_BASE: (0.0, 0.0),
-        "80000001": (0.0, 2000.0),
-        "80000002": (2000.0, 2000.0),
-        "80000003": (2000.0, 0.0),
-        "80000004": (1000.0, 1000.0),
-    }
-    matriz: Dict[Tuple[str, str], float] = {}
-    for a, (xa, ya) in pontos.items():
-        for b, (xb, yb) in pontos.items():
-            matriz[(a, b)] = ((xa - xb) ** 2 + (ya - yb) ** 2) ** 0.5
-    return ceps, matriz
+def ponto(cep: str, km_ao_norte: float, km_a_leste: float = 0.0) -> Coordenada:
+    km_por_grau_de_longitude = KM_POR_GRAU * math.cos(math.radians(LATITUDE_DA_BASE))
+    return Coordenada(
+        cep,
+        LATITUDE_DA_BASE + km_ao_norte / KM_POR_GRAU,
+        LONGITUDE_DA_BASE + km_a_leste / km_por_grau_de_longitude,
+    )
 
 
-def test_gerar_populacao_inicial_integridade():
-    """Garante que os indivíduos criados não repetem nem omitem CEPs e usam velocidades válidas[cite: 2, 7]."""
-    ceps, matriz = criar_cenario_ficticio()
-    ceps_intermediarios = set(ceps) - {CEP_BASE}
+BASE = ponto(CEP_UNIBRASIL, 0)
+# Quadrado de 2 km de lado com a base em um canto e um ponto no centro.
+QUADRADO = [BASE, ponto("A", 2), ponto("B", 2, 2), ponto("C", 0, 2), ponto("D", 1, 1)]
+CEPS_DO_QUADRADO = {"A", "B", "C", "D"}
 
-    populacao = gerar_populacao_inicial(tamanho_populacao=10, todos_ceps=ceps, matriz_distancias=matriz)
+
+@pytest.fixture(autouse=True)
+def sem_vento_e_com_semente(monkeypatch):
+    calmaria = tuple(vento.Vento(0, "N") for _ in range(5))
+    monkeypatch.setattr(vento, "PREVISAO", {dia: calmaria for dia in range(1, 8)})
+    random.seed(7)
+
+
+def individuo(ordem: list[str], velocidade: int = 36) -> Individuo:
+    return Individuo(ordem, dict.fromkeys([*ordem, CEP_UNIBRASIL], velocidade))
+
+
+def cromossomo_integro(candidato: Individuo, ceps: set[str]) -> bool:
+    return (
+        sorted(candidato.ordem_ceps) == sorted(ceps)
+        and set(candidato.velocidades) == ceps | {CEP_UNIBRASIL}
+        and all(v in VELOCIDADES_PERMITIDAS for v in candidato.velocidades.values())
+    )
+
+
+# Operadores genéticos
+
+
+def test_populacao_inicial_tem_cromossomos_integros():
+    distancias = tabela_de_distancias(QUADRADO)
+    ceps = [coordenada.cep for coordenada in QUADRADO]
+
+    populacao = gerar_populacao_inicial(10, ceps, distancias)
 
     assert len(populacao) == 10
-    for ind in populacao:
-        assert CEP_BASE not in ind.ordem_ceps
-        assert set(ind.ordem_ceps) == ceps_intermediarios
-        assert len(ind.ordem_ceps) == len(ceps_intermediarios)
-        assert len(ind.velocidades) == len(ceps)
-        assert all(v in VELOCIDADES_VALIDAS for v in ind.velocidades)
+    assert all(cromossomo_integro(candidato, CEPS_DO_QUADRADO) for candidato in populacao)
 
 
-def test_crossover_ox1_preserva_permutacao():
-    """Garante que o cruzamento OX1 gera filhos válidos sem duplicar ou perder CEPs[cite: 2, 11]."""
-    pai1 = Individuo(ordem_ceps=["80000001", "80000002", "80000003", "80000004"], velocidades=[36, 40, 44, 48, 52])
-    pai2 = Individuo(ordem_ceps=["80000004", "80000003", "80000002", "80000001"], velocidades=[60, 64, 68, 72, 76])
+def test_crossover_ox1_preserva_a_permutacao_e_herda_velocidade_junto_com_o_cep():
+    pai1 = individuo(["A", "B", "C", "D"], velocidade=36)
+    pai2 = individuo(["D", "C", "B", "A"], velocidade=80)
 
-    filho = crossover_ox1(pai1, pai2)
+    for _ in range(20):
+        filho = crossover_ox1(pai1, pai2)
 
-    assert set(filho.ordem_ceps) == {"80000001", "80000002", "80000003", "80000004"}
-    assert len(filho.ordem_ceps) == 4
-    assert len(filho.velocidades) == 5
-    assert all(v in VELOCIDADES_VALIDAS for v in filho.velocidades)
+        assert cromossomo_integro(filho, CEPS_DO_QUADRADO)
+        # Os CEPs herdados do pai 1 ficam juntos, na ordem dele e com a velocidade dele.
+        do_pai1 = [cep for cep in filho.ordem_ceps if filho.velocidades[cep] == 36]
+        assert "".join(do_pai1) in "ABCD"
 
 
-def test_aplicar_2opt_remove_cruzamento():
-    """Verifica se o 2-opt descruza uma rota em formato de 'X' reduzindo a distância."""
-    _, matriz = criar_cenario_ficticio()
-    # Rota cruzada: Base(0,0) -> 02(2000,2000) -> 01(0,2000) -> 03(2000,0) -> Base(0,0)
-    ind = Individuo(
-        ordem_ceps=["80000002", "80000001", "80000003"],
-        velocidades=[36, 36, 36, 36],
+def test_2opt_desfaz_o_cruzamento_da_rota():
+    distancias = tabela_de_distancias(QUADRADO[:4])
+    cruzada = individuo(["B", "A", "C"])
+
+    aplicar_2opt(cruzada, distancias)
+
+    assert cruzada.ordem_ceps in (["A", "B", "C"], ["C", "B", "A"])
+
+
+def test_mutacao_mantem_o_cromossomo_integro():
+    distancias = tabela_de_distancias(QUADRADO)
+
+    for _ in range(20):
+        mutante = individuo(["A", "B", "C", "D"])
+        mutacao(mutante, distancias, taxa_mutacao=1.0)
+
+        assert cromossomo_integro(mutante, CEPS_DO_QUADRADO)
+
+
+def test_mutacao_com_taxa_zero_nao_altera_o_individuo():
+    original = individuo(["A", "B", "C", "D"])
+    mutante = original.copia()
+
+    mutacao(mutante, tabela_de_distancias(QUADRADO), taxa_mutacao=0.0)
+
+    assert mutante == original
+
+
+def test_individuo_aleatorio_prefere_velocidades_economicas():
+    ceps = [str(numero) for numero in range(500)]
+
+    velocidades = list(criar_individuo_aleatorio(ceps).velocidades.values())
+
+    assert velocidades.count(36) > velocidades.count(80)
+
+
+def test_torneio_escolhe_o_menor_fitness_entre_os_sorteados():
+    populacao = [Individuo([], {}, fitness=nota) for nota in (30.0, 10.0, 20.0)]
+
+    assert selecao_torneio(populacao, tamanho_torneio=3).fitness == 10.0
+
+
+# Montagem do plano
+
+
+def test_plano_curto_e_voado_sem_pousos_intermediarios():
+    simulador = Simulador(QUADRADO)
+
+    plano = montar_plano(individuo(["A", "B", "C", "D"]), simulador)
+
+    assert [trecho.cep_destino for trecho in plano] == ["A", "B", "C", "D", CEP_UNIBRASIL]
+    assert [trecho.pousar for trecho in plano] == [False, False, False, False, True]
+    assert simulador.simular_plano(plano).valido
+
+
+def test_plano_pousa_antes_de_faltar_bateria():
+    # A 80 km/h a autonomia é de 1154 s: depois de M e P, a volta com pouso não cabe.
+    coordenadas = [BASE, ponto("P", 5.005), ponto("M", 10.013)]
+    simulador = Simulador(coordenadas)
+
+    plano = montar_plano(individuo(["M", "P"], velocidade=80), simulador)
+
+    assert [trecho.pousar for trecho in plano] == [False, True, True]
+    assert simulador.simular_plano(plano).valido
+
+
+def test_plano_que_nao_cabe_em_um_dia_continua_no_dia_seguinte():
+    # 11 pontos no contorno de um quadrado de 120 km: 12 trechos de 40 km levam mais de 13 h.
+    contorno = [(40, 0), (80, 0), (120, 0), (120, 40), (120, 80), (120, 120)]
+    contorno += [(80, 120), (40, 120), (0, 120), (0, 80), (0, 40)]
+    coordenadas = [BASE] + [
+        ponto(f"{numero:02d}", norte, leste) for numero, (norte, leste) in enumerate(contorno)
+    ]
+    simulador = Simulador(coordenadas)
+    ordem = [coordenada.cep for coordenada in coordenadas[1:]]
+
+    plano = montar_plano(individuo(ordem), simulador)
+    resultado = simulador.simular_plano(plano)
+
+    assert resultado.valido
+    assert all(trecho.pousar for trecho in plano)
+    assert [trecho.partida for trecho in plano if trecho.partida] == [Momento.de_horario(2, 6)]
+    assert resultado.trechos[-1].chegada.dia == 2
+
+
+def test_trecho_alem_da_autonomia_gera_plano_invalido_e_penalizado():
+    # 60 km a 36 km/h passam dos 5700 s de autonomia.
+    simulador = Simulador([BASE, ponto("LONGE", 60)])
+    candidato = individuo(["LONGE"])
+
+    resultado = avaliar(candidato, simulador)
+
+    assert "bateria esgotada" in resultado.violacoes[0]
+    assert candidato.fitness >= PENALIDADE_DE_PLANO_INVALIDO
+
+
+def test_plano_fica_incompleto_quando_o_prazo_nao_basta(monkeypatch):
+    monkeypatch.setattr("src.algoritmo_genetico.ULTIMO_DIA", 1)
+    contorno = [(40, 0), (80, 0), (120, 0), (120, 40), (120, 80), (120, 120)]
+    contorno += [(80, 120), (40, 120), (0, 120), (0, 80), (0, 40)]
+    coordenadas = [BASE] + [
+        ponto(f"{numero:02d}", norte, leste) for numero, (norte, leste) in enumerate(contorno)
+    ]
+    ordem = [coordenada.cep for coordenada in coordenadas[1:]]
+
+    plano = montar_plano(individuo(ordem), Simulador(coordenadas))
+
+    assert len(plano) == 11
+    assert plano[-1].cep_destino != CEP_UNIBRASIL
+
+
+# Fitness
+
+
+def test_fitness_soma_tempo_de_voo_e_custo_dos_pousos():
+    simulador = Simulador(QUADRADO)
+    candidato = individuo(["A", "B", "C", "D"])
+
+    resultado = avaliar(candidato, simulador)
+
+    assert resultado.custo_dos_pousos_reais == 80
+    assert candidato.fitness == (
+        resultado.tempo_total_de_voo_s + 80 * PESO_DO_CUSTO_EM_SEGUNDOS_POR_REAL
     )
 
-    aplicar_2opt(ind, matriz, max_passadas=3)
 
-    # Após descruzar, os pontos adjacentes do quadrado (01 e 03) devem ficar nas extremidades
-    assert ind.ordem_ceps in (
-        ["80000001", "80000002", "80000003"],
-        ["80000003", "80000002", "80000001"],
+def test_plano_invalido_e_pior_que_qualquer_valido_e_melhora_quanto_mais_voa():
+    simulador = Simulador(QUADRADO)
+    valido = simulador.simular_plano(montar_plano(individuo(["A", "B", "C", "D"]), simulador))
+    parou_no_primeiro = simulador.simular_plano([TrechoPlanejado("A", 38, pousar=True)])
+    parou_no_segundo = simulador.simular_plano(
+        [TrechoPlanejado("A", 36, pousar=False), TrechoPlanejado("B", 38, pousar=True)]
     )
 
+    nota_valida = calcular_fitness(valido, total_de_trechos=5)
+    nota_do_primeiro = calcular_fitness(parou_no_primeiro, total_de_trechos=5)
+    nota_do_segundo = calcular_fitness(parou_no_segundo, total_de_trechos=5)
 
-def test_mutacao_mantem_validade_dos_genes():
-    """Verifica se a mutação (inversão, deslocamento e velocidade) mantém o cromossomo íntegro[cite: 13]."""
-    _, matriz = criar_cenario_ficticio()
-    ind = Individuo(
-        ordem_ceps=["80000001", "80000002", "80000003", "80000004"],
-        velocidades=[36, 36, 36, 36, 36],
+    assert nota_valida < PENALIDADE_DE_PLANO_INVALIDO <= nota_do_segundo < nota_do_primeiro
+
+
+# Laço evolutivo
+
+
+def test_execucao_encontra_a_volta_pelo_contorno_do_quadrado(capsys):
+    simulador = Simulador(QUADRADO[:4])
+
+    melhor, resultado, historico = executar_algoritmo_genetico(
+        simulador, QUADRADO[:4], tamanho_populacao=8, max_geracoes=12, semente=1
     )
 
-    mutacao(ind, matriz, taxa_mutacao=1.0)  # Força execução de todos os operadores de mutação
-
-    assert set(ind.ordem_ceps) == {"80000001", "80000002", "80000003", "80000004"}
-    assert len(ind.velocidades) == 5
-    assert all(v in VELOCIDADES_VALIDAS for v in ind.velocidades)
-
-
-def test_decodificar_individuo_inicio_fim_e_pouso_automatico():
-    """Verifica saída/retorno ao Unibrasil e inserção automática de pouso quando a bateria não basta[cite: 1, 2]."""
-    ceps = [CEP_BASE, "80000001", "80000002"]
-    # Distâncias muito longas (45 km cada) para forçar recarga intermediária
-    matriz = {
-        (CEP_BASE, "80000001"): 45_000.0,
-        ("80000001", "80000002"): 45_000.0,
-        ("80000002", CEP_BASE): 45_000.0,
-    }
-    ind = Individuo(ordem_ceps=["80000001", "80000002"], velocidades=[36, 36, 36])
-
-    plano = decodificar_individuo(ind, matriz)
-
-    assert len(plano) == 3
-    assert plano[0].cep_origem == CEP_BASE
-    assert plano[-1].cep_destino == CEP_BASE
-    assert plano[-1].pouso is True
-    # Como cada trecho de 45 km a 36 km/h gasta > 4500s e a autonomia é 5700s, precisa pousar no 1º destino
-    assert plano[0].pouso is True
+    assert resultado.valido
+    assert melhor.ordem_ceps in (["A", "B", "C"], ["C", "B", "A"])
+    assert historico == sorted(historico, reverse=True)
+    assert "Geração 001" in capsys.readouterr().out
 
 
-def test_calcular_fitness_penaliza_rota_invalida():
-    """Garante que rotas inválidas recebam penalização severa maior que qualquer rota válida[cite: 2, 13]."""
-    res_valido = ResultadoSimulacao(
-        valida=True,
-        motivo_invalidez=None,
-        tempo_total_segundos=10_000,
-        custo_total_reais=240.0,
-        linhas_csv=[],
-    )
-    res_invalido = ResultadoSimulacao(
-        valida=False,
-        motivo_invalidez="Bateria acabou no ar",
-        tempo_total_segundos=500,
-        custo_total_reais=0.0,
-        linhas_csv=[],
-    )
+def test_execucao_para_apos_o_limite_de_geracoes_sem_melhora(capsys):
+    simulador = Simulador(QUADRADO)
 
-    nota_valida = calcular_fitness(res_valido)
-    nota_invalida = calcular_fitness(res_invalido)
-
-    assert nota_valida == 10_000 + (240.0 * PESO_CUSTO_FINANCEIRO)
-    assert nota_invalida > nota_valida
-    assert nota_invalida >= 1_000_000_000.0
-
-
-def test_executar_algoritmo_genetico_fluxo_completo():
-    """Testa seleção por torneio, elitismo e critério de parada do loop evolutivo[cite: 11, 13]."""
-    ceps, matriz = criar_cenario_ficticio()
-
-    def avaliador_ficticio(plano: List[TrechoPlanejado]) -> ResultadoSimulacao:
-        dist_total = sum(matriz[(t.cep_origem, t.cep_destino)] for t in plano)
-        tempo = int(dist_total / 10.0)
-        custo = sum(80.0 for t in plano if t.pouso)
-        return ResultadoSimulacao(True, None, tempo, custo, [])
-
-    melhor_ind, melhor_res, historico = executar_algoritmo_genetico(
-        todos_ceps=ceps,
-        matriz_distancias=matriz,
-        funcao_avaliacao=avaliador_ficticio,
+    _, _, historico = executar_algoritmo_genetico(
+        simulador,
+        QUADRADO,
         tamanho_populacao=8,
-        max_geracoes=10,
+        max_geracoes=200,
         geracoes_sem_melhora_limite=5,
+        semente=1,
     )
 
-    assert melhor_res.valida is True
-    assert len(historico) >= 1
-    assert historico[-1] <= historico[0]
-    assert set(melhor_ind.ordem_ceps) == set(ceps) - {CEP_BASE}
+    assert len(historico) < 200
+    assert historico[-6:] == [historico[-1]] * 6
+    assert "5 gerações sem melhora" in capsys.readouterr().out
+
+
+def test_mesma_semente_reproduz_a_mesma_execucao():
+    simulador = Simulador(QUADRADO)
+    parametros = {"tamanho_populacao": 8, "max_geracoes": 5, "taxa_crossover": 0.5, "semente": 3}
+
+    primeira = executar_algoritmo_genetico(simulador, QUADRADO, **parametros)
+    segunda = executar_algoritmo_genetico(simulador, QUADRADO, **parametros)
+
+    assert primeira[0] == segunda[0]
+    assert primeira[2] == segunda[2]
