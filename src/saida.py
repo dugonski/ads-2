@@ -30,7 +30,7 @@ def gravar_solucao(trechos: Sequence[TrechoSimulado], caminho: Path) -> None:
     """Grava uma linha por trecho, com as 11 colunas pedidas na especificação."""
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with open(caminho, mode="w", encoding="utf-8", newline="") as arquivo:
-        escritor = csv.writer(arquivo)
+        escritor = csv.writer(arquivo, lineterminator="\n")
         escritor.writerow(COLUNAS)
         for trecho in trechos:
             escritor.writerow(

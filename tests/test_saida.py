@@ -21,6 +21,7 @@ def test_csv_tem_as_onze_colunas_e_uma_linha_por_trecho(tmp_path):
     ida, volta = resultado.trechos
     assert linhas[0] == COLUNAS
     assert len(COLUNAS) == 11
+    assert b"\r" not in caminho.read_bytes()
     assert linhas[1] == [
         CEP_UNIBRASIL, "-25.4233146347775", "-49.2160678044742", "1", "06:00:00", "36",
         vizinho.cep, "-25.4936598469491", "-49.3400481020638", "NÃO", ida.chegada.horario,
