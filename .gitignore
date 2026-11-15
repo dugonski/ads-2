@@ -20,3 +20,6 @@ Thumbs.db
 
 # Pacote de entrega
 *.zip
+
+# Saídas de execuções de conferência
+output/teste.csv

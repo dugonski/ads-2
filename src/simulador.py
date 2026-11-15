@@ -97,7 +97,7 @@ class Simulador:
             if problema is None:
                 simulado = self.simular_trecho(cep_atual, trecho, partida, carga)
                 simulados.append(simulado)
-                problema = _problema_na_chegada(simulado)
+                problema = problema_na_chegada(simulado)
             if problema is not None:
                 violacoes.append(f"Trecho {numero}: {problema}")
                 break
@@ -143,7 +143,8 @@ class Simulador:
         return problemas
 
 
-def _problema_na_chegada(trecho: TrechoSimulado) -> str | None:
+def problema_na_chegada(trecho: TrechoSimulado) -> str | None:
+    """Regra descumprida pelo voo do trecho, se houver: bateria ou horário de pouso."""
     if trecho.carga_restante < 0:
         return "bateria esgotada antes do fim do trecho"
     if trecho.chegada.segundo_do_dia > LIMITE_DE_POUSO_S:
