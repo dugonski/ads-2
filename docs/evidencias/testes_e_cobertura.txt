@@ -4,16 +4,16 @@ rootdir: .
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.1.0
-collected 96 items
+collected 95 items
 
 tests/test_algoritmo_genetico.py .................                       [ 17%]
-tests/test_contrato.py ....                                              [ 21%]
+tests/test_contrato.py ....                                              [ 22%]
 tests/test_coordenadas.py ...                                            [ 25%]
 tests/test_drone.py ........                                             [ 33%]
-tests/test_geografia.py ..........                                       [ 43%]
-tests/test_main.py ..                                                    [ 45%]
-tests/test_saida.py ..                                                   [ 47%]
-tests/test_simulador.py ...................................              [ 84%]
+tests/test_geografia.py ..........                                       [ 44%]
+tests/test_main.py ..                                                    [ 46%]
+tests/test_saida.py ..                                                   [ 48%]
+tests/test_simulador.py ..................................               [ 84%]
 tests/test_vento.py ...............                                      [100%]
 
 ================================ tests coverage ================================
@@ -29,8 +29,8 @@ src/drone.py                   14      0      0      0   100%
 src/geografia.py               22      0      0      0   100%
 src/main.py                    25      1      4      1    93%   46
 src/saida.py                   15      0      2      0   100%
-src/simulador.py               94      0     36      0   100%
+src/simulador.py               95      0     36      0   100%
 src/vento.py                   20      0      2      0   100%
 -----------------------------------------------------------------------
-TOTAL                         432      1     90      1    99%
-============================== 96 passed in 3.76s ==============================
+TOTAL                         433      1     90      1    99%
+============================== 95 passed in 3.82s ==============================
