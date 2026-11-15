@@ -18,7 +18,8 @@ minimizar o tempo total de voo e a quantidade de pousos para recarga.
 | `docs/coordenadas_extras.md` | Documentação das coordenadas extras e matrículas |
 | `docs/regras_do_simulador.md` | Regras implementadas no simulador e interpretações adotadas |
 | `docs/algoritmo_genetico.md` | Codificação, operadores, fitness e critério de parada |
-| `output/` | CSV com a melhor solução encontrada |
+| `output/solucao_final.csv` | Plano de voo completo da melhor solução encontrada |
+| `docs/evidencias/` | Saída da execução do algoritmo e dos testes com cobertura |
 | `src/` | Código-fonte |
 | `tests/` | Testes unitários |
 

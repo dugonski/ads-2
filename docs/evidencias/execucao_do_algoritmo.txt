@@ -1,0 +1,32 @@
+Geração 001 | Fitness: 69021.00 | Válido: True | Tempo de voo: 49821 s | Pousos: 13 | Custo: R$ 1280
+Geração 010 | Fitness: 68960.00 | Válido: True | Tempo de voo: 49760 s | Pousos: 13 | Custo: R$ 1280
+Geração 020 | Fitness: 67232.00 | Válido: True | Tempo de voo: 49232 s | Pousos: 13 | Custo: R$ 1200
+Geração 030 | Fitness: 66968.00 | Válido: True | Tempo de voo: 48968 s | Pousos: 13 | Custo: R$ 1200
+Geração 040 | Fitness: 66876.00 | Válido: True | Tempo de voo: 48876 s | Pousos: 13 | Custo: R$ 1200
+Geração 050 | Fitness: 66840.00 | Válido: True | Tempo de voo: 48840 s | Pousos: 13 | Custo: R$ 1200
+Geração 060 | Fitness: 66816.00 | Válido: True | Tempo de voo: 48816 s | Pousos: 13 | Custo: R$ 1200
+Geração 070 | Fitness: 66705.00 | Válido: True | Tempo de voo: 48705 s | Pousos: 13 | Custo: R$ 1200
+Geração 080 | Fitness: 66600.00 | Válido: True | Tempo de voo: 48600 s | Pousos: 13 | Custo: R$ 1200
+Geração 090 | Fitness: 66577.00 | Válido: True | Tempo de voo: 48577 s | Pousos: 13 | Custo: R$ 1200
+Geração 100 | Fitness: 66577.00 | Válido: True | Tempo de voo: 48577 s | Pousos: 13 | Custo: R$ 1200
+Geração 110 | Fitness: 66557.00 | Válido: True | Tempo de voo: 48557 s | Pousos: 13 | Custo: R$ 1200
+Geração 120 | Fitness: 66545.00 | Válido: True | Tempo de voo: 48545 s | Pousos: 13 | Custo: R$ 1200
+Geração 130 | Fitness: 66536.00 | Válido: True | Tempo de voo: 48536 s | Pousos: 13 | Custo: R$ 1200
+Geração 140 | Fitness: 66536.00 | Válido: True | Tempo de voo: 48536 s | Pousos: 13 | Custo: R$ 1200
+Geração 150 | Fitness: 66536.00 | Válido: True | Tempo de voo: 48536 s | Pousos: 13 | Custo: R$ 1200
+Geração 160 | Fitness: 66528.00 | Válido: True | Tempo de voo: 48528 s | Pousos: 13 | Custo: R$ 1200
+Geração 170 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 180 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 190 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 200 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 210 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 220 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 230 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Geração 240 | Fitness: 66521.00 | Válido: True | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+Parada na geração 247: 80 gerações sem melhora.
+Plano gravado em output/solucao_final.csv
+Trechos: 376 | Fim: dia 2 às 06:32:11 | Tempo de voo: 48521 s | Pousos: 13 | Custo: R$ 1200
+
+real	2m10.709s
+user	2m9.965s
+sys	0m0.041s
