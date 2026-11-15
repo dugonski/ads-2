@@ -16,7 +16,7 @@ resultado = simulador.simular_plano([
     TrechoPlanejado(cep_destino="82821020", velocidade_kmh=40, pousar=True),
 ])
 resultado.valido                  # False: faltam coordenadas a visitar
-resultado.violacoes               # regras descumpridas, com o índice do trecho
+resultado.violacoes               # mensagens das regras descumpridas
 resultado.tempo_total_de_voo_s    # soma de voo e paradas
 resultado.numero_de_pousos
 resultado.custo_dos_pousos_reais
@@ -26,6 +26,9 @@ Cada `TrechoPlanejado` é uma decisão do algoritmo genético: destino, velocida
 se pousa no destino e, opcionalmente, quando decola. Sem `partida`, o drone
 decola assim que fica disponível. Para retomar no dia seguinte, o trecho deve
 informar `partida=Momento.de_horario(dia, 6)`.
+
+A simulação para no primeiro trecho que descumpre uma regra, e a mensagem
+informa o número desse trecho. A bateria é uma fração: 1 é cheia e 0 é vazia.
 
 `Simulador.simular_trecho` calcula um único voo sem verificar regras. Serve para
 montar um plano passo a passo, consultando horário de chegada e carga restante
@@ -73,5 +76,3 @@ combinação desses valores na função fitness pertence ao algoritmo genético.
    quantas vezes quiser.
 9. **Espera no ar.** Sem pouso, o drone parte para o próximo trecho assim que
    termina a parada de 60 s; só é possível esperar em solo.
-10. **Carga na chegada.** Chegar com a carga exatamente zerada é aceito; faltar
-    carga em qualquer momento é violação.

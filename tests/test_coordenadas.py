@@ -26,7 +26,7 @@ def test_cep_repetido_e_recusado(tmp_path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="82821020"):
+    with pytest.raises(ValueError, match="CEP repetido"):
         carregar_coordenadas(arquivo)
 
 

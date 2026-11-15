@@ -1,7 +1,7 @@
 import pytest
 
 from src.contrato import Momento
-from src.vento import PREVISAO, Vento, graus_da_direcao, velocidade_efetiva_kmh, vento_na_partida
+from src.vento import PREVISAO, Vento, velocidade_efetiva_kmh, vento_na_partida
 
 
 def test_exemplo_da_especificacao_com_vento_vindo_de_sse():
@@ -19,13 +19,6 @@ def test_vento_de_cauda_soma_e_vento_de_proa_subtrai():
 
     assert velocidade_efetiva_kmh(36, rumo_norte, Vento(10, "S")) == pytest.approx(46)
     assert velocidade_efetiva_kmh(36, rumo_norte, Vento(10, "N")) == pytest.approx(26)
-
-
-@pytest.mark.parametrize(
-    ("direcao", "graus"), [("N", 0.0), ("ENE", 67.5), ("E", 90.0), ("SSE", 157.5), ("WSW", 247.5)]
-)
-def test_graus_da_rosa_dos_ventos(direcao, graus):
-    assert graus_da_direcao(direcao) == graus
 
 
 def test_exemplo_da_especificacao_para_a_coluna_do_horario_de_partida():

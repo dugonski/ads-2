@@ -1,5 +1,6 @@
 """Simulação do plano de voo: horários, bateria, custos e regras do problema."""
 
+from collections import Counter
 from collections.abc import Sequence
 
 from src.contrato import (
@@ -7,23 +8,14 @@ from src.contrato import (
     Coordenada,
     Momento,
     ResultadoSimulacao,
-    TipoViolacao,
     TrechoPlanejado,
     TrechoSimulado,
-    Violacao,
 )
 from src.coordenadas import CEP_UNIBRASIL
-from src.drone import (
-    CARGA_CHEIA,
-    consumo_de_carga,
-    tempo_de_parada_s,
-    tempo_de_voo_s,
-    velocidade_permitida,
-)
+from src.drone import VELOCIDADES_PERMITIDAS, autonomia_s, tempo_de_parada_s, tempo_de_voo_s
 from src.geografia import matriz_de_angulos_graus, matriz_de_distancias_km
 from src.vento import velocidade_efetiva_kmh, vento_na_partida
 
-PRIMEIRO_DIA = 1
 ULTIMO_DIA = 7
 INICIO_DOS_VOOS_S = 6 * SEGUNDOS_POR_HORA
 LIMITE_DE_POUSO_S = 19 * SEGUNDOS_POR_HORA
@@ -31,6 +23,8 @@ INICIO_DA_TAXA_ADICIONAL_S = 17 * SEGUNDOS_POR_HORA
 
 CUSTO_DO_POUSO_REAIS = 80
 TAXA_ADICIONAL_DE_POUSO_REAIS = 80
+
+BATERIA_CHEIA = 1.0
 
 
 def custo_do_pouso_reais(segundo_do_dia: int) -> int:
@@ -52,7 +46,7 @@ class Simulador:
         self._angulos_graus = matriz_de_angulos_graus(self._coordenadas)
 
     def simular_trecho(
-        self, cep_origem: str, trecho: TrechoPlanejado, partida: Momento, carga_disponivel: int
+        self, cep_origem: str, trecho: TrechoPlanejado, partida: Momento, carga: float
     ) -> TrechoSimulado:
         """Voa um trecho, sem verificar as regras do problema.
 
@@ -64,10 +58,10 @@ class Simulador:
         velocidade_efetiva = velocidade_efetiva_kmh(
             trecho.velocidade_kmh, self._angulos_graus[origem][destino], vento_na_partida(partida)
         )
-        tempo_de_voo = tempo_de_voo_s(self._distancias_km[origem][destino], velocidade_efetiva)
-        tempo_de_parada = tempo_de_parada_s(trecho.pousar)
-        chegada = partida.apos(tempo_de_voo + tempo_de_parada)
-        consumo = consumo_de_carga(tempo_de_voo + tempo_de_parada, trecho.velocidade_kmh)
+        duracao = tempo_de_voo_s(
+            self._distancias_km[origem][destino], velocidade_efetiva
+        ) + tempo_de_parada_s(trecho.pousar)
+        chegada = partida.apos(duracao)
         return TrechoSimulado(
             origem=self._coordenadas[origem],
             destino=self._coordenadas[destino],
@@ -75,9 +69,7 @@ class Simulador:
             chegada=chegada,
             velocidade_kmh=trecho.velocidade_kmh,
             pousou=trecho.pousar,
-            tempo_de_voo_s=tempo_de_voo,
-            tempo_de_parada_s=tempo_de_parada,
-            carga_restante=carga_disponivel - consumo,
+            carga_restante=carga - duracao / autonomia_s(trecho.velocidade_kmh),
             custo_do_pouso_reais=(
                 custo_do_pouso_reais(chegada.segundo_do_dia) if trecho.pousar else 0
             ),
@@ -86,69 +78,74 @@ class Simulador:
     def simular_plano(self, trechos: Sequence[TrechoPlanejado]) -> ResultadoSimulacao:
         """Simula o plano a partir do campus Unibrasil e aponta as regras descumpridas.
 
-        A simulação para no primeiro trecho que não pode ser calculado: destino
-        desconhecido ou partida em dia ou horário sem previsão de vento.
+        A simulação para no primeiro trecho que descumpre uma regra.
         """
-        violacoes: list[Violacao] = []
         simulados: list[TrechoSimulado] = []
-        visitas: dict[str, int] = {}
+        violacoes: list[str] = []
         cep_atual = CEP_UNIBRASIL
-        carga = CARGA_CHEIA
+        carga = BATERIA_CHEIA
         em_solo = True
-        disponivel_em = Momento(PRIMEIRO_DIA, INICIO_DOS_VOOS_S)
+        disponivel_em = Momento(1, INICIO_DOS_VOOS_S)
 
-        def violar(tipo: TipoViolacao, indice: int | None, detalhe: str) -> None:
-            violacoes.append(Violacao(tipo, indice, f"{tipo.value}: {detalhe}"))
-
-        for indice, trecho in enumerate(trechos):
+        for numero, trecho in enumerate(trechos, start=1):
             partida = trecho.partida or disponivel_em
-            if trecho.cep_destino not in self._indices:
-                violar(TipoViolacao.CEP_DESCONHECIDO, indice, trecho.cep_destino)
+            adiou_no_ar = partida > disponivel_em and not em_solo
+            if partida < disponivel_em or adiou_no_ar:
+                problema = "partida incompatível com a chegada anterior"
+            else:
+                problema = self._problema_antes_do_voo(cep_atual, trecho, partida)
+            if problema is None:
+                simulado = self.simular_trecho(cep_atual, trecho, partida, carga)
+                simulados.append(simulado)
+                problema = _problema_na_chegada(simulado)
+            if problema is not None:
+                violacoes.append(f"Trecho {numero}: {problema}")
                 break
-            if not PRIMEIRO_DIA <= partida.dia <= ULTIMO_DIA:
-                violar(TipoViolacao.FORA_DO_PRAZO, indice, f"dia {partida.dia}")
-                break
-            if not INICIO_DOS_VOOS_S <= partida.segundo_do_dia < LIMITE_DE_POUSO_S:
-                violar(TipoViolacao.FORA_DO_HORARIO_DE_VOO, indice, partida.horario)
-                break
-            if partida < disponivel_em or (not em_solo and partida != disponivel_em):
-                violar(
-                    TipoViolacao.PARTIDA_INCOMPATIVEL,
-                    indice,
-                    f"dia {partida.dia} às {partida.horario}",
-                )
-            if trecho.cep_destino == cep_atual:
-                violar(TipoViolacao.TRECHO_SEM_DESLOCAMENTO, indice, cep_atual)
-            if not velocidade_permitida(trecho.velocidade_kmh):
-                violar(TipoViolacao.VELOCIDADE_INVALIDA, indice, f"{trecho.velocidade_kmh} km/h")
-
-            simulado = self.simular_trecho(cep_atual, trecho, partida, carga)
-            simulados.append(simulado)
-            if simulado.chegada.segundo_do_dia > LIMITE_DE_POUSO_S:
-                violar(TipoViolacao.CHEGADA_APOS_O_LIMITE, indice, simulado.chegada.horario)
-            if simulado.carga_restante < 0:
-                violar(TipoViolacao.BATERIA_ESGOTADA, indice, f"destino {trecho.cep_destino}")
-
-            visitas[trecho.cep_destino] = visitas.get(trecho.cep_destino, 0) + 1
-            if trecho.cep_destino != CEP_UNIBRASIL and visitas[trecho.cep_destino] > 1:
-                violar(TipoViolacao.CEP_REPETIDO, indice, trecho.cep_destino)
-
             cep_atual = trecho.cep_destino
             em_solo = trecho.pousar
-            carga = CARGA_CHEIA if trecho.pousar else simulado.carga_restante
+            carga = BATERIA_CHEIA if trecho.pousar else simulado.carga_restante
             disponivel_em = simulado.chegada
 
-        if not trechos:
-            violar(TipoViolacao.PLANO_VAZIO, None, "nenhum voo planejado")
-        else:
-            if trechos[-1].cep_destino != CEP_UNIBRASIL:
-                violar(TipoViolacao.FIM_FORA_DA_BASE, None, trechos[-1].cep_destino)
-            if not trechos[-1].pousar:
-                violar(TipoViolacao.FIM_SEM_POUSO, None, "último trecho sem pouso")
-        nao_visitados = [
-            cep for cep in self._indices if cep != CEP_UNIBRASIL and cep not in visitas
-        ]
-        if nao_visitados:
-            violar(TipoViolacao.CEPS_NAO_VISITADOS, None, f"{len(nao_visitados)} coordenadas")
-
+        violacoes.extend(self._problemas_da_rota(trechos))
         return ResultadoSimulacao(tuple(simulados), tuple(violacoes))
+
+    def _problema_antes_do_voo(
+        self, cep_origem: str, trecho: TrechoPlanejado, partida: Momento
+    ) -> str | None:
+        if trecho.cep_destino not in self._indices:
+            return f"CEP {trecho.cep_destino} fora da lista de coordenadas"
+        if trecho.cep_destino == cep_origem:
+            return "origem e destino iguais"
+        if trecho.velocidade_kmh not in VELOCIDADES_PERMITIDAS:
+            return f"velocidade de {trecho.velocidade_kmh} km/h fora das regulagens do drone"
+        if not 1 <= partida.dia <= ULTIMO_DIA:
+            return f"partida no dia {partida.dia}, fora do prazo de {ULTIMO_DIA} dias"
+        if not INICIO_DOS_VOOS_S <= partida.segundo_do_dia < LIMITE_DE_POUSO_S:
+            return f"partida às {partida.horario}, fora do horário de voo"
+        return None
+
+    def _problemas_da_rota(self, trechos: Sequence[TrechoPlanejado]) -> list[str]:
+        if not trechos:
+            return ["Plano sem trechos"]
+        problemas = []
+        if trechos[-1].cep_destino != CEP_UNIBRASIL:
+            problemas.append("O plano não termina no campus Unibrasil")
+        if not trechos[-1].pousar:
+            problemas.append("O plano termina com o drone no ar")
+        visitas = Counter(trecho.cep_destino for trecho in trechos)
+        del visitas[CEP_UNIBRASIL]
+        repetidos = sorted(cep for cep, vezes in visitas.items() if vezes > 1)
+        if repetidos:
+            problemas.append(f"CEPs visitados mais de uma vez: {', '.join(repetidos)}")
+        sem_visita = len(set(self._indices) - set(visitas) - {CEP_UNIBRASIL})
+        if sem_visita:
+            problemas.append(f"{sem_visita} CEPs sem visita")
+        return problemas
+
+
+def _problema_na_chegada(trecho: TrechoSimulado) -> str | None:
+    if trecho.carga_restante < 0:
+        return "bateria esgotada antes do fim do trecho"
+    if trecho.chegada.segundo_do_dia > LIMITE_DE_POUSO_S:
+        return f"chegada às {trecho.chegada.horario}, depois do limite de pouso"
+    return None

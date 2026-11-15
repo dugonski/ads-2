@@ -9,14 +9,13 @@ from dataclasses import dataclass
 
 from src.contrato import SEGUNDOS_POR_HORA, Momento
 
-ROSA_DOS_VENTOS = (
-    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
-)  # fmt: skip
-GRAUS_POR_PONTO_DA_ROSA = 360 / len(ROSA_DOS_VENTOS)
-
-PRIMEIRA_HORA_DA_PREVISAO = 6
-HORAS_POR_COLUNA_DA_PREVISAO = 3
+# Ângulo de cada direção, a partir do Norte no sentido horário.
+DIRECAO_EM_GRAUS = {
+    "N": 0.0, "NNE": 22.5, "NE": 45.0, "ENE": 67.5,
+    "E": 90.0, "ESE": 112.5, "SE": 135.0, "SSE": 157.5,
+    "S": 180.0, "SSW": 202.5, "SW": 225.0, "WSW": 247.5,
+    "W": 270.0, "WNW": 292.5, "NW": 315.0, "NNW": 337.5,
+}  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -39,25 +38,18 @@ PREVISAO = {
 }
 
 
-def graus_da_direcao(direcao: str) -> float:
-    """Ângulo do ponto da rosa dos ventos, a partir do Norte no sentido horário."""
-    return ROSA_DOS_VENTOS.index(direcao) * GRAUS_POR_PONTO_DA_ROSA
-
-
 def vento_na_partida(partida: Momento) -> Vento:
     """Vento válido durante todo o trecho, definido pelo horário de partida."""
     hora = partida.segundo_do_dia // SEGUNDOS_POR_HORA
-    coluna = (hora - PRIMEIRA_HORA_DA_PREVISAO) // HORAS_POR_COLUNA_DA_PREVISAO
-    ventos_do_dia = PREVISAO.get(partida.dia, ())
-    if not 0 <= coluna < len(ventos_do_dia):
+    if partida.dia not in PREVISAO or not 6 <= hora < 21:
         raise ValueError(f"Sem previsão de vento para o dia {partida.dia} às {partida.horario}")
-    return ventos_do_dia[coluna]
+    return PREVISAO[partida.dia][(hora - 6) // 3]
 
 
 def velocidade_efetiva_kmh(velocidade_kmh: float, angulo_de_voo_graus: float, vento: Vento) -> float:
     """Módulo da soma vetorial da velocidade do drone com a do vento."""
     angulo_de_voo = math.radians(angulo_de_voo_graus)
-    destino_do_vento = math.radians(graus_da_direcao(vento.direcao_de_origem) + 180)
+    destino_do_vento = math.radians(DIRECAO_EM_GRAUS[vento.direcao_de_origem] + 180)
     leste = velocidade_kmh * math.sin(angulo_de_voo) + vento.velocidade_kmh * math.sin(
         destino_do_vento
     )

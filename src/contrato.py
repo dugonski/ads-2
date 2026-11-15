@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 
 SEGUNDOS_POR_HORA = 3600
 SEGUNDOS_POR_MINUTO = 60
@@ -58,7 +57,11 @@ class TrechoPlanejado:
 
 @dataclass(frozen=True)
 class TrechoSimulado:
-    """Resultado do voo de um trecho, com os dados de uma linha do CSV de saída."""
+    """Resultado do voo de um trecho, com os dados de uma linha do CSV de saída.
+
+    `carga_restante` vai de 1 (bateria cheia) a 0 (vazia) e é medida na chegada,
+    antes da troca de bateria quando há pouso.
+    """
 
     origem: Coordenada
     destino: Coordenada
@@ -66,47 +69,21 @@ class TrechoSimulado:
     chegada: Momento
     velocidade_kmh: int
     pousou: bool
-    tempo_de_voo_s: int
-    tempo_de_parada_s: int
-    carga_restante: int
+    carga_restante: float
     custo_do_pouso_reais: int
 
     @property
     def duracao_s(self) -> int:
-        return self.tempo_de_voo_s + self.tempo_de_parada_s
-
-
-class TipoViolacao(Enum):
-    PLANO_VAZIO = "plano sem trechos"
-    CEP_DESCONHECIDO = "destino fora da lista de coordenadas"
-    TRECHO_SEM_DESLOCAMENTO = "origem e destino iguais"
-    VELOCIDADE_INVALIDA = "velocidade fora das regulagens do drone"
-    PARTIDA_INCOMPATIVEL = "partida incompatível com a chegada anterior"
-    FORA_DO_PRAZO = "partida fora dos dias da previsão"
-    FORA_DO_HORARIO_DE_VOO = "partida fora do horário permitido"
-    CHEGADA_APOS_O_LIMITE = "chegada depois do horário limite de pouso"
-    BATERIA_ESGOTADA = "carga insuficiente para completar o trecho"
-    CEP_REPETIDO = "coordenada visitada mais de uma vez"
-    CEPS_NAO_VISITADOS = "coordenadas sem visita"
-    FIM_FORA_DA_BASE = "plano não termina no campus Unibrasil"
-    FIM_SEM_POUSO = "plano termina com o drone no ar"
-
-
-@dataclass(frozen=True)
-class Violacao:
-    """Regra descumprida. `indice_do_trecho` é vazio quando vale para o plano todo."""
-
-    tipo: TipoViolacao
-    indice_do_trecho: int | None
-    descricao: str
+        """Tempo de voo mais o tempo de parada no destino."""
+        return self.chegada.segundo_do_dia - self.partida.segundo_do_dia
 
 
 @dataclass(frozen=True)
 class ResultadoSimulacao:
-    """Plano de voo simulado e as regras que ele descumpre."""
+    """Trechos simulados e a descrição de cada regra descumprida."""
 
     trechos: tuple[TrechoSimulado, ...]
-    violacoes: tuple[Violacao, ...]
+    violacoes: tuple[str, ...]
 
     @property
     def valido(self) -> bool:

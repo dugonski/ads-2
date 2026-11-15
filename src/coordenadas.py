@@ -17,9 +17,7 @@ def carregar_coordenadas(caminho: Path = ARQUIVO_DE_COORDENADAS) -> list[Coorden
             Coordenada(linha["cep"], float(linha["latitude"]), float(linha["longitude"]))
             for linha in csv.DictReader(arquivo)
         ]
-    ceps_lidos = set()
-    for coordenada in coordenadas:
-        if coordenada.cep in ceps_lidos:
-            raise ValueError(f"CEP {coordenada.cep} repetido em {caminho}")
-        ceps_lidos.add(coordenada.cep)
+    ceps = [coordenada.cep for coordenada in coordenadas]
+    if len(ceps) != len(set(ceps)):
+        raise ValueError(f"Há CEP repetido em {caminho}")
     return coordenadas
