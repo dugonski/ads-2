@@ -1,0 +1,22 @@
+# Ambientes virtuais (nunca vão para o Git nem para o ZIP)
+.venv/
+.venv_linux/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editores e sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Pacote de entrega
+*.zip

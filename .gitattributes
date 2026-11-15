@@ -1,0 +1,2 @@
+# Todo arquivo de texto usa LF, inclusive no Windows.
+* text=auto eol=lf
