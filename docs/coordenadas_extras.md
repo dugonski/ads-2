@@ -19,7 +19,6 @@ de 6371 km.
 | Guilherme Dugonski | 2024101129 | 24101129 | -25.4083724101129 | -49.2577899153158 | CEP 80030430 | 748,25 |
 | Tiago Machado da Rosa | 2024101751 | 24101751 | -25.4210024101751 | -49.2124839175329 | CEP 82821020 | 442,32 |
 
-A latitude da coordenada de Guilherme termina em `24101129`.
-
-As distâncias devem ser recalculadas sobre a base final consolidada quando a
-coordenada de Tiago for incluída em `data/coordenadas.csv`.
+A latitude de cada coordenada termina nos 8 últimos dígitos da matrícula do
+integrante. As distâncias foram medidas sobre a base final consolidada, com as
+duas coordenadas extras incluídas.

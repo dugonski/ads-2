@@ -17,6 +17,7 @@ minimizar o tempo total de voo e a quantidade de pousos para recarga.
 | `data/coordenadas.csv` | Lista original mais as coordenadas extras da equipe |
 | `docs/coordenadas_extras.md` | Documentação das coordenadas extras e matrículas |
 | `docs/regras_do_simulador.md` | Regras implementadas no simulador e interpretações adotadas |
+| `docs/algoritmo_genetico.md` | Codificação, operadores, fitness e critério de parada |
 | `output/` | CSV com a melhor solução encontrada |
 | `src/` | Código-fonte |
 | `tests/` | Testes unitários |
@@ -50,6 +51,14 @@ projeto.
 
    ```bash
    python3 -m src.main
+   ```
+
+   O plano de voo é gravado em `output/solucao_final.csv`. A execução usa a
+   semente 2024, que reproduz o arquivo entregue. Para uma execução rápida de
+   conferência:
+
+   ```bash
+   python3 -m src.main --populacao 20 --geracoes 20 --saida output/teste.csv
    ```
 
 ## Convenções do projeto
