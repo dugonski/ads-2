@@ -7,7 +7,7 @@ minimizar o tempo total de voo e a quantidade de pousos para recarga.
 ## Integrantes
 
 - Guilherme Dugonski - Matrícula: 2024101129
-- Tiago (nome completo a preencher) - Matrícula: 2024101751
+- Tiago Machado da Rosa - Matrícula: 2024101751
 
 ## Estrutura
 
